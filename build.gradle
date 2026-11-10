@@ -1,0 +1,29 @@
+plugins {
+	id 'java'
+}
+
+group = 'by.ayoo'
+version = '1.0'
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release.set(25)
+}
+
+jar {
+	manifest {
+		attributes(
+			'Main-Class': 'by.ayoo.serverwrapper.ServerWrapper',
+			// The server jar sits next to the wrapper; the JVM resolves this relative to the wrapper jar.
+			'Class-Path': 'server.jar',
+			// Only the jar started with -jar can grant this, and the server needs it as it would have had it itself.
+			'Enable-Native-Access': 'ALL-UNNAMED',
+			'Implementation-Title': 'ServerWrapper',
+			'Implementation-Version': version
+		)
+	}
+}
