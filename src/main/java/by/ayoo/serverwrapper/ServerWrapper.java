@@ -60,7 +60,7 @@ public final class ServerWrapper {
 			if (!Exec.supported()) {
 				problem = "this system can't replace a running process";
 			} else {
-				problem = check(options);
+				problem = check(options, hostMaxHeap());
 				if (problem == null) {
 					List<String> command = command(serverJar, options, args);
 					log("Starting Java again with " + options.size() + " option" + (options.size() == 1 ? "" : "s") + " from " + CONFIG + ": " + shown(command));
@@ -164,17 +164,19 @@ public final class ServerWrapper {
 	}
 
 	/**
-	 * Runs {@code java OPTIONS -version} with a small heap to see if Java accepts the options, without the ones that
-	 * size or pre-touch the heap or load agents. Returns null if it does, or Java's complaint.
+	 * Runs {@code java OPTIONS -version} with the host's maximum heap to see if Java accepts the options, without the
+	 * ones that size or pre-touch the heap or load agents. Returns null if it does, or Java's complaint. The heap must
+	 * be the real one: Java checks some options against it, such as SurvivorRatio against G1's region count.
 	 */
-	static String check(List<String> options) throws IOException, InterruptedException {
+	static String check(List<String> options, long maxHeap) throws IOException, InterruptedException {
 		List<String> command = new ArrayList<>();
 		command.add(javaExecutable());
 		for (String option : options)
 			if (heapSize(option) < 0 && !option.startsWith("-XX:SoftMaxHeapSize=") && !option.equals("-XX:+AlwaysPreTouch")
 					&& !option.startsWith("-javaagent:") && !option.startsWith("-agentlib:") && !option.startsWith("-agentpath:"))
 				command.add(option);
-		command.add("-Xmx64m");
+		// Only the initial heap is committed, so the full maximum costs no memory.
+		command.add("-Xmx" + Math.max(maxHeap >> 20, 64) + "m");
 		command.add("-version");
 		ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
 		OPTION_VARIABLES.forEach(builder.environment()::remove);
