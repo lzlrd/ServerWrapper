@@ -5,8 +5,10 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.management.ManagementFactory;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -24,9 +26,10 @@ import java.util.regex.Pattern;
  *
  * <p>With options in the file, the wrapper replaces its own process with a new JVM that gets the host's options, then
  * the file's, then {@code -jar server.jar} and the original arguments. The process keeps its ID and no second JVM is
- * left running. Options that set the maximum heap are skipped, so the server keeps the heap the host gives it. If Java
- * rejects the options, or the process can't be replaced, the wrapper sets the file's system properties in its own JVM
- * and starts the server there, so a bad option never keeps the server down.
+ * left running. Options the JDK adds itself are left for the new JVM to read again, as this one did. Options that set
+ * the maximum heap are skipped, so the server keeps the heap the host gives it. If Java rejects the options, or the
+ * process can't be replaced, the wrapper sets the file's system properties in its own JVM and starts the server there,
+ * so a bad option never keeps the server down.
  */
 public final class ServerWrapper {
 	static final String SERVER_JAR = "server.jar";
@@ -188,7 +191,7 @@ public final class ServerWrapper {
 		boolean ownCollector = options.stream().anyMatch(option -> option.startsWith("-XX:+") && GC.matcher(option).matches());
 		List<String> command = new ArrayList<>();
 		command.add(javaExecutable());
-		for (String option : ManagementFactory.getRuntimeMXBean().getInputArguments())
+		for (String option : withoutBuiltIn(ManagementFactory.getRuntimeMXBean().getInputArguments(), builtInOptions()))
 			if (!(ownCollector && GC.matcher(option).matches()))
 				command.add(option);
 		command.addAll(options);
@@ -196,6 +199,30 @@ public final class ServerWrapper {
 		command.add(serverJar.toString());
 		command.addAll(List.of(args));
 		return command;
+	}
+
+	/**
+	 * The options the JDK passes to every JVM it starts, from the jdk/internal/vm/options resource in java.base. Oracle
+	 * GraalVM uses it to turn on its compiler. Returns an empty list if the JDK has none.
+	 */
+	static List<String> builtInOptions() {
+		try {
+			Path resource = FileSystems.getFileSystem(URI.create("jrt:/")).getPath("/modules/java.base/jdk/internal/vm/options");
+			return Files.isRegularFile(resource) ? tokenize(Files.readString(resource, StandardCharsets.UTF_8)) : List.of();
+		} catch (IOException | RuntimeException e) {
+			return List.of();
+		}
+	}
+
+	/**
+	 * The input arguments without the JDK's built-in options, which come first. The new JVM reads them again itself, so
+	 * passing them would set them twice, and as command-line options: Java then warns that ThreadPriorityPolicy=1 may
+	 * need root.
+	 */
+	static List<String> withoutBuiltIn(List<String> inputArguments, List<String> builtIn) {
+		if (!builtIn.isEmpty() && inputArguments.size() >= builtIn.size() && inputArguments.subList(0, builtIn.size()).equals(builtIn))
+			return inputArguments.subList(builtIn.size(), inputArguments.size());
+		return inputArguments;
 	}
 
 	/** Sets the config's system properties in this JVM, for when Java can't be started again with them. */

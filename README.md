@@ -24,6 +24,7 @@ With options in the file, the wrapper replaces its own process with a new JVM: `
 
 - Options that set the maximum heap, such as `-Xmx` or `-XX:MaxRAMPercentage`, are skipped, and so is an `-Xms` above the host's maximum. The server keeps the heap the host gives it.
 - A garbage collector you choose, such as `-XX:+UseZGC`, replaces the host's choice.
+- Options the JDK adds to every start, such as Oracle GraalVM's built-in ones, aren't passed again. The new JVM reads them itself, as the first one did.
 - Before handing over, the wrapper runs `java <your options> -version`. If Java rejects an option, the log says why and the server starts in the wrapper's own JVM with only your `-D` properties. It does the same on Windows, which can't replace a running process. Properties Java reads as it starts, such as `jdk.graal.*` or `file.encoding`, have no effect that way.
 - GraalVM reads `jdk.graal.*` options when its compiler starts, which that check may not reach. If the server stops with a Graal options error, fix that line.
 
