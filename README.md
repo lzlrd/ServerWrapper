@@ -38,7 +38,7 @@ If Leaf reports a loader update, replace `server.jar` with the file it names, no
 ./gradlew build
 ```
 
-Needs JDK 25. Writes `build/libs/ServerWrapper-1.0.jar`.
+Needs JDK 25. Writes `build/libs/ServerWrapper-1.1.jar`.
 
 ## Licence
 

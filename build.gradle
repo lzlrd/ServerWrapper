@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'by.ayoo'
-version = '1.0'
+version = '1.1'
 
 java {
 	toolchain.languageVersion = JavaLanguageVersion.of(25)
