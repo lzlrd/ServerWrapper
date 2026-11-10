@@ -38,3 +38,7 @@ If Leaf reports a loader update, replace `server.jar` with the file it names, no
 ```
 
 Needs JDK 25. Writes `build/libs/ServerWrapper-1.0.jar`.
+
+## Licence
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md).
